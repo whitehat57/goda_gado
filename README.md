@@ -55,3 +55,8 @@ Artinya: "Sesungguhnya Kami menciptakan segala sesuatu sesuai dengan ukuran."
 Qada adalah ketetapan Allah SWT sejak sebelum penciptaan alam semesta (zaman azali), sedangkan qadar adalah perwujudan ketetapan Allah SWT (qada) yang disebut takdir.
 Baca artikel detikhikmah, "Rukun Iman Ada 6, Ini Penjelasan yang Wajib Diketahui Muslim" selengkapnya https://www.detik.com/hikmah/khazanah/d-6917963/rukun-iman-ada-6-ini-penjelasan-yang-wajib-diketahui-muslim.
 ```
+
+# cara run
+```
+python3 main.py
+```

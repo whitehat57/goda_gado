@@ -5,11 +5,25 @@ import random
 import re
 from urllib.parse import urljoin
 import warnings
+import os
 warnings.filterwarnings('ignore')
 
 def get_target_url():
-    url = input("Masukkan URL target (contoh: https://example.com): ")
-    return url.rstrip('/')
+    while True:
+        url = input("Masukkan URL target (contoh: https://example.com): ").strip()
+        if not url.startswith(('http://', 'https://')):
+            print("Error: URL harus dimulai dengan http:// atau https://")
+            continue
+            
+        try:
+            # Test koneksi awal
+            response = requests.head(url, verify=False, timeout=10)
+            return url.rstrip('/')
+        except requests.exceptions.RequestException as e:
+            print(f"Error: Tidak dapat terhubung ke URL: {str(e)}")
+            retry = input("Coba URL lain? (y/n): ")
+            if retry.lower() != 'y':
+                raise SystemExit("Program dihentikan oleh pengguna")
 
 # Daftar payload dan teknik bypass yang diperluas
 headers_payload = {
@@ -167,22 +181,25 @@ class Bypass403:
 
     def try_path_bypass(self):
         """Try different path variations"""
-        parsed_path = self.base_url.split('/')[-1]
-        
-        for variation in path_variations:
-            test_url = self.base_url + variation
-            try:
-                response = self.session.get(
-                    url=test_url,
-                    headers=generate_headers(),
-                    verify=False,
-                    timeout=10
-                )
-                if response.status_code < 403:
-                    self.log_success(f"Path bypass successful using {variation}", response)
-                    
-            except requests.exceptions.RequestException:
-                continue
+        try:
+            # Gunakan urljoin untuk menggabungkan URL dengan benar
+            for variation in path_variations:
+                test_url = urljoin(self.base_url, variation.lstrip('/'))
+                try:
+                    response = self.session.get(
+                        url=test_url,
+                        headers=generate_headers(),
+                        verify=False,
+                        timeout=10
+                    )
+                    if response.status_code < 403:
+                        self.log_success(f"Path bypass successful using {variation}", response)
+                        
+                except requests.exceptions.RequestException as e:
+                    print(f"Error pada path {test_url}: {str(e)}")
+                    continue
+        except Exception as e:
+            print(f"Error dalam try_path_bypass: {str(e)}")
 
     def try_header_bypass(self):
         """Try different header combinations"""
@@ -226,21 +243,29 @@ class Bypass403:
     def save_results(self):
         """Save successful attempts to a JSON file"""
         if self.successful_attempts:
-            # Simpan ke bypass_config.json untuk kompatibilitas dengan canon_403.py
-            with open("bypass_config.json", "w") as f:
-                # Ambil attempt pertama yang berhasil
-                first_success = self.successful_attempts[0]
+            try:
+                # Simpan ke bypass_config.json untuk kompatibilitas dengan canon_403.py
                 config_data = {
-                    "url": first_success["url"],
-                    "headers": first_success["headers_sent"],
-                    "cookies": {},  # Bisa ditambahkan jika diperlukan
-                    "server_type": first_success.get("waf_detected", ["Unknown"])[0]
+                    "url": self.base_url,
+                    "headers": self.successful_attempts[0]["headers_sent"],
+                    "cookies": {},
+                    "server_type": self.successful_attempts[0].get("waf_detected", ["Unknown"])[0]
                 }
-                json.dump(config_data, f, indent=4)
                 
-            # Simpan semua hasil ke successful_bypasses.json
-            with open("successful_bypasses.json", "w") as f:
-                json.dump(self.successful_attempts, f, indent=4)
+                # Gunakan temporary file untuk atomic write
+                temp_config = "bypass_config.json.tmp"
+                with open(temp_config, "w") as f:
+                    json.dump(config_data, f, indent=4)
+                os.replace(temp_config, "bypass_config.json")
+                
+                # Simpan detail lengkap
+                with open("successful_bypasses.json", "w") as f:
+                    json.dump(self.successful_attempts, f, indent=4)
+                    
+                print("[+] Konfigurasi berhasil disimpan")
+                
+            except Exception as e:
+                print(f"[-] Error saat menyimpan hasil: {str(e)}")
 
     def run_all_bypasses(self):
         """Run all bypass methods"""

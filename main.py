@@ -34,36 +34,44 @@ def run_script(script_name):
         print(Fore.RED + f"Error saat menjalankan {script_name}: {e}")
 
 def run_bypass_sequence():
-    # Hapus file bypass_config.json jika sudah ada
-    if os.path.exists("bypass_config.json"):
-        os.remove("bypass_config.json")
+    # Hapus file lama jika ada
+    for file in ["bypass_config.json", "successful_bypasses.json"]:
+        if os.path.exists(file):
+            try:
+                os.remove(file)
+            except Exception as e:
+                print(f"Warning: Tidak dapat menghapus {file}: {e}")
     
-    # Jalankan bypass_403v3.py
     print(Fore.YELLOW + "Memulai proses bypass...")
     run_script("bypass_403v3.py")
     
     # Tunggu dan cek file
-    max_retries = 3
+    max_retries = 5  # Tambah retry
     retries = 0
     while retries < max_retries:
         if os.path.exists("bypass_config.json"):
             try:
                 # Verifikasi file dapat dibaca
                 with open("bypass_config.json", "r") as f:
-                    json.load(f)
-                print(Fore.GREEN + "Bypass berhasil, menjalankan canon attack...")
-                time.sleep(2)
-                run_script("canon_403.py")
-                break
+                    config = json.load(f)
+                    # Verifikasi struktur minimal
+                    if all(k in config for k in ["url", "headers"]):
+                        print(Fore.GREEN + "Bypass berhasil, menjalankan canon attack...")
+                        time.sleep(2)
+                        run_script("canon_403.py")
+                        return
+                    else:
+                        print(Fore.RED + "File konfigurasi tidak lengkap")
             except json.JSONDecodeError:
-                print(Fore.RED + "File konfigurasi rusak, mencoba lagi...")
-        else:
-            print(Fore.YELLOW + f"Menunggu hasil bypass... ({retries + 1}/{max_retries})")
-            time.sleep(2)
-            retries += 1
+                print(Fore.RED + "File konfigurasi rusak")
+            except Exception as e:
+                print(Fore.RED + f"Error saat membaca konfigurasi: {e}")
+        
+        print(Fore.YELLOW + f"Menunggu hasil bypass... ({retries + 1}/{max_retries})")
+        time.sleep(3)  # Tunggu lebih lama
+        retries += 1
     
-    if retries >= max_retries:
-        print(Fore.RED + "Bypass gagal, tidak dapat melanjutkan ke canon attack")
+    print(Fore.RED + "Bypass gagal, tidak dapat melanjutkan ke canon attack")
 
 # Fungsi utama untuk memilih opsi
 def main():

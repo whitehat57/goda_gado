@@ -226,6 +226,19 @@ class Bypass403:
     def save_results(self):
         """Save successful attempts to a JSON file"""
         if self.successful_attempts:
+            # Simpan ke bypass_config.json untuk kompatibilitas dengan canon_403.py
+            with open("bypass_config.json", "w") as f:
+                # Ambil attempt pertama yang berhasil
+                first_success = self.successful_attempts[0]
+                config_data = {
+                    "url": first_success["url"],
+                    "headers": first_success["headers_sent"],
+                    "cookies": {},  # Bisa ditambahkan jika diperlukan
+                    "server_type": first_success.get("waf_detected", ["Unknown"])[0]
+                }
+                json.dump(config_data, f, indent=4)
+                
+            # Simpan semua hasil ke successful_bypasses.json
             with open("successful_bypasses.json", "w") as f:
                 json.dump(self.successful_attempts, f, indent=4)
 

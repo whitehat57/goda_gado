@@ -220,43 +220,51 @@ class Bypass403:
 
     def log_success(self, message, response, headers=None):
         """Log successful bypass attempts"""
-        success = {
-            "message": message,
-            "url": response.url,
-            "status_code": response.status_code,
-            "headers_sent": headers or response.request.headers,
-            "response_headers": dict(response.headers),
-            "waf_detected": detect_waf(response)
-        }
-        self.successful_attempts.append(success)
-        
-        # Save to file immediately
-        self.save_results()
-        
-        # Print success message
-        print(f"\n[+] {message}")
-        print(f"[+] Status Code: {response.status_code}")
-        print(f"[+] URL: {response.url}")
-        if success["waf_detected"]:
-            print(f"[+] WAF Detected: {', '.join(success['waf_detected'])}")
+        try:
+            # Pastikan headers dalam bentuk dict
+            headers_to_save = dict(headers) if headers else dict(response.request.headers)
+            
+            success = {
+                "message": message,
+                "url": response.url,
+                "status_code": response.status_code,
+                "headers_sent": headers_to_save,
+                "response_headers": dict(response.headers),
+                "waf_detected": detect_waf(response)
+            }
+            self.successful_attempts.append(success)
+            
+            # Print success message
+            print(f"\n[+] {message}")
+            print(f"[+] Status Code: {response.status_code}")
+            print(f"[+] URL: {response.url}")
+            if success["waf_detected"]:
+                print(f"[+] WAF Detected: {', '.join(success['waf_detected'])}")
+                
+            # Save setelah setiap success
+            self.save_results()
+            
+        except Exception as e:
+            print(f"[-] Error dalam log_success: {str(e)}")
 
     def save_results(self):
         """Save successful attempts to a JSON file"""
         if self.successful_attempts:
             try:
-                # Simpan ke bypass_config.json untuk kompatibilitas dengan canon_403.py
+                # Ambil attempt terakhir yang berhasil
+                latest_success = self.successful_attempts[-1]  # Gunakan -1 untuk mengambil yang terakhir
+                
+                # Buat config data
                 config_data = {
                     "url": self.base_url,
-                    "headers": self.successful_attempts[0]["headers_sent"],
+                    "headers": dict(latest_success["headers_sent"]),  # Pastikan headers dalam bentuk dict
                     "cookies": {},
-                    "server_type": self.successful_attempts[0].get("waf_detected", ["Unknown"])[0]
+                    "server_type": latest_success.get("waf_detected", ["Unknown"])[0] if latest_success.get("waf_detected") else "Unknown"
                 }
                 
-                # Gunakan temporary file untuk atomic write
-                temp_config = "bypass_config.json.tmp"
-                with open(temp_config, "w") as f:
+                # Simpan ke bypass_config.json
+                with open("bypass_config.json", "w") as f:
                     json.dump(config_data, f, indent=4)
-                os.replace(temp_config, "bypass_config.json")
                 
                 # Simpan detail lengkap
                 with open("successful_bypasses.json", "w") as f:
@@ -266,6 +274,10 @@ class Bypass403:
                 
             except Exception as e:
                 print(f"[-] Error saat menyimpan hasil: {str(e)}")
+                # Tambahkan debug info
+                print(f"[DEBUG] Jumlah successful attempts: {len(self.successful_attempts)}")
+                if self.successful_attempts:
+                    print(f"[DEBUG] Sample data: {self.successful_attempts[0].keys()}")
 
     def run_all_bypasses(self):
         """Run all bypass methods"""

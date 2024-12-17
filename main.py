@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from colorama import Fore, Style, init
 
 # Inisialisasi colorama untuk mendukung warna di terminal
@@ -32,6 +33,38 @@ def run_script(script_name):
     except Exception as e:
         print(Fore.RED + f"Error saat menjalankan {script_name}: {e}")
 
+def run_bypass_sequence():
+    # Hapus file bypass_config.json jika sudah ada
+    if os.path.exists("bypass_config.json"):
+        os.remove("bypass_config.json")
+    
+    # Jalankan bypass_403v3.py
+    print(Fore.YELLOW + "Memulai proses bypass...")
+    run_script("bypass_403v3.py")
+    
+    # Tunggu dan cek file
+    max_retries = 3
+    retries = 0
+    while retries < max_retries:
+        if os.path.exists("bypass_config.json"):
+            try:
+                # Verifikasi file dapat dibaca
+                with open("bypass_config.json", "r") as f:
+                    json.load(f)
+                print(Fore.GREEN + "Bypass berhasil, menjalankan canon attack...")
+                time.sleep(2)
+                run_script("canon_403.py")
+                break
+            except json.JSONDecodeError:
+                print(Fore.RED + "File konfigurasi rusak, mencoba lagi...")
+        else:
+            print(Fore.YELLOW + f"Menunggu hasil bypass... ({retries + 1}/{max_retries})")
+            time.sleep(2)
+            retries += 1
+    
+    if retries >= max_retries:
+        print(Fore.RED + "Bypass gagal, tidak dapat melanjutkan ke canon attack")
+
 # Fungsi utama untuk memilih opsi
 def main():
     while True:
@@ -43,10 +76,7 @@ def main():
         choice = input(Fore.GREEN + "Pilih opsi: " + Style.RESET_ALL)
 
         if choice == "1":
-            # Menjalankan bypass_403.py kemudian canon_403.py
-            run_script("bypass_403v3.py")
-            time.sleep(5)  # Tunggu sejenak sebelum menjalankan script berikutnya
-            run_script("canon_403.py")
+            run_bypass_sequence()
         elif choice == "2":
             # Menjalankan API.py
             run_script("API.py")
